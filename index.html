@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DCML Neural Pathway Lab - Interactive MBBS Neuroanatomy</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'lab-bg': '#090d16',
+                        'lab-card': '#111827',
+                        'lab-border': '#1f2937',
+                        'stim-active': '#00ff88',
+                        'stim-inactive': '#1a3d2b',
+                        'inhibit-active': '#ff3366',
+                        'inhibit-inactive': '#4a1a24',
+                        'node-excited': '#ffea00',
+                        'node-dull': '#1c2333',
+                        'lesion-red': '#ff0055'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #090d16;
+            color: #f3f4f6;
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* Custom Animated Pulse along SVG Wire Paths */
+        .wire-pulse {
+            stroke-dasharray: 8 8;
+            animation: wireFlow 1s linear infinite;
+        }
+
+        @keyframes wireFlow {
+            from { stroke-dashoffset: 16; }
+            to { stroke-dashoffset: 0; }
+        }
+
+        /* Glowing Aura Effects */
+        .glow-yellow-aura {
+            box-shadow: 0 0 25px rgba(255, 234, 0, 0.6), 0 0 50px rgba(255, 234, 0, 0.2);
+        }
+
+        .glow-green-wire {
+            filter: drop-shadow(0 0 6px #00ff88);
+        }
+
+        .glow-red-lesion {
+            filter: drop-shadow(0 0 10px #ff0055);
+        }
+
+        /* Romberg Sway Animation for Sensory Ataxia */
+        @keyframes swayAnimation {
+            0% { transform: rotate(0deg) translateX(0px); }
+            25% { transform: rotate(7deg) translateX(12px); }
+            50% { transform: rotate(-8deg) translateX(-14px); }
+            75% { transform: rotate(10deg) translateX(18px); }
+            100% { transform: rotate(0deg) translateX(0px); }
+        }
+
+        .animate-sway {
+            animation: swayAnimation 2.2s ease-in-out infinite;
+            transform-origin: bottom center;
+        }
+
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #090d16;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1f2937;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #374151;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between text-slate-100 selection:bg-teal-500 selection:text-black">
+
+    <!-- Navigation / Header Toolbar -->
+    <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-50 px-4 py-3">
+        <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="p-2 bg-teal-500/10 border border-teal-500/30 rounded-lg text-teal-400">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold bg-gradient-to-r from-teal-400 via-emerald-300 to-yellow-300 bg-clip-text text-transparent">
+                        DCML Neural Pathway Lab
+                    </h1>
+                    <p class="text-xs text-slate-400 font-medium">MBBS Neuroanatomy & Clinical Neurology Simulator</p>
+                </div>
+            </div>
+
+            <!-- Global Status Bar -->
+            <div class="flex items-center space-x-4 text-xs">
+                <div class="flex items-center space-x-2 bg-slate-800/80 px-3 py-1.5 rounded-full border border-slate-700">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span class="text-slate-300 font-mono" id="status-mode-label">Mode: Baseline Normal</span>
+                </div>
+                <button onclick="toggleNotesDrawer()" class="bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-500/40 text-indigo-300 px-3 py-1.5 rounded-lg transition font-medium flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                    </svg>
+                    <span>High-Yield MBBS Notes</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace Container -->
+    <main class="max-w-7xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 flex-grow">
+
+        <!-- LEFT COLUMN: Interactive Ascending Neural Tract Canvas (7 Cols) -->
+        <section class="lg:col-span-7 bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col relative overflow-hidden backdrop-blur">
+            
+            <!-- Visual Legend & Quick Toggle -->
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-3 bg-slate-950/70 p-2.5 rounded-xl border border-slate-800/80 text-xs">
+                <div class="flex items-center space-x-3">
+                    <div class="flex items-center space-x-1.5">
+                        <span class="w-3 h-3 rounded-full bg-[#00ff88] shadow-[0_0_8px_#00ff88]"></span>
+                        <span class="text-slate-300">Stimulated Wire</span>
+                    </div>
+                    <div class="flex items-center space-x-1.5">
+                        <span class="w-3 h-3 rounded-full bg-[#1a3d2b]"></span>
+                        <span class="text-slate-400">Inactive/Lesioned Wire</span>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <div class="flex items-center space-x-1.5">
+                        <span class="w-3 h-3 rounded-full bg-[#ffea00] shadow-[0_0_8px_#ffea00]"></span>
+                        <span class="text-slate-300">Active Node</span>
+                    </div>
+                    <div class="flex items-center space-x-1.5">
+                        <span class="w-3 h-3 rounded-full bg-[#330f18] border border-[#ff0055]"></span>
+                        <span class="text-slate-400">Lesion (✕)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SVG Ascending Tract Circuit Canvas -->
+            <div class="relative w-full flex-grow flex items-center justify-center bg-slate-950/90 rounded-xl border border-slate-800 p-2">
+                <svg id="dcml-svg" viewBox="0 0 800 950" class="w-full h-auto max-h-[820px] select-none">
+                    <defs>
+                        <!-- Glow Filters for Nodes & Wires -->
+                        <filter id="glow-green" x="-30%" y="-30%" width="160%" height="160%">
+                            <feGaussianBlur stdDeviation="6" result="blur" />
+                            <feMerge>
+                                <feMergeNode in="blur" />
+                                <feMergeNode in="SourceGraphic" />
+                            </feMerge>
+                        </filter>
+                        <filter id="glow-yellow" x="-40%" y="-40%" width="180%" height="180%">
+                            <feGaussianBlur stdDeviation="8" result="blur" />
+                            <feMerge>
+                                <feMergeNode in="blur" />
+                                <feMergeNode in="SourceGraphic" />
+                            </feMerge>
+                        </filter>
+                        <filter id="glow-red" x="-40%" y="-40%" width="180%" height="180%">
+                            <feGaussianBlur stdDeviation="8" result="blur" />
+                            <feMerge>
+                                <feMergeNode in="blur" />
+                                <feMergeNode in="SourceGraphic" />
+                            </feMerge>
+                        </filter>
+
+                        <!-- Gradient background for anatomical tiers -->
+                        <linearGradient id="tier-bg" x1="0" y1="0" x2="1" y2="0">
+                            <stop offset="0%" stop-color="#0f172a" stop-opacity="0.3"/>
+                            <stop offset="50%" stop-color="#1e293b" stop-opacity="0.1"/>
+                            <stop offset="100%" stop-color="#0f172a" stop-opacity="0.3"/>
+                        </linearGradient>
+                    </defs>
+
+                    <!-- Anatomical Level Background Guides -->
+                    <!-- Level 6: Cortex (Y: 40-140) -->
+                    <rect x="20" y="40" width="760" height="100" rx="10" fill="url(#tier-bg)" stroke="#334155" stroke-dasharray="4 4" opacity="0.6"/>
+                    <text x="35" y="65" fill="#94a3b8" font-size="12" font-weight="700" font-family="JetBrains Mono">LEVEL 6: PRIMARY SOMATOSENSORY CORTEX S1 (POSTCENTRAL GYRUS)</text>
+
+                    <!-- Level 5: Thalamus (Y: 160-260) -->
+                    <rect x="20" y="160" width="760" height="100" rx="10" fill="url(#tier-bg)" stroke="#334155" stroke-dasharray="4 4" opacity="0.6"/>
+                    <text x="35" y="185" fill="#94a3b8" font-size="12" font-weight="700" font-family="JetBrains Mono">LEVEL 5: THALAMUS (VPL NUCLEUS) & INTERNAL CAPSULE</text>
+
+                    <!-- Level 4: Brainstem Lemniscus (Y: 280-380) -->
+                    <rect x="20" y="280" width="760" height="100" rx="10" fill="url(#tier-bg)" stroke="#334155" stroke-dasharray="4 4" opacity="0.6"/>
+                    <text x="35" y="305" fill="#94a3b8" font-size="12" font-weight="700" font-family="JetBrains Mono">LEVEL 4: BRAINSTEM (PONS & MIDBRAIN - MEDIAL LEMNISCUS)</text>
+
+                    <!-- Level 3: Caudal Medulla Decussation (Y: 400-530) -->
+                    <rect x="20" y="400" width="760" height="130" rx="10" fill="url(#tier-bg)" stroke="#334155" stroke-dasharray="4 4" opacity="0.6"/>
+                    <text x="35" y="425" fill="#94a3b8" font-size="12" font-weight="700" font-family="JetBrains Mono">LEVEL 3: CAUDAL MEDULLA (SENSORY DECUSSATION - INTERNAL ARCUATE FIBERS)</text>
+
+                    <!-- Level 2: Spinal Cord Posterior Columns (Y: 550-710) -->
+                    <rect x="20" y="550" width="760" height="160" rx="10" fill="url(#tier-bg)" stroke="#334155" stroke-dasharray="4 4" opacity="0.6"/>
+                    <text x="35" y="575" fill="#94a3b8" font-size="12" font-weight="700" font-family="JetBrains Mono">LEVEL 2: SPINAL CORD POSTERIOR FUNICULUS (GRACILIS & CUNEATUS)</text>
+
+                    <!-- Level 1: Peripheral Receptors & DRG (Y: 730-910) -->
+                    <rect x="20" y="730" width="760" height="180" rx="10" fill="url(#tier-bg)" stroke="#334155" stroke-dasharray="4 4" opacity="0.6"/>
+                    <text x="35" y="755" fill="#94a3b8" font-size="12" font-weight="700" font-family="JetBrains Mono">LEVEL 1: PERIPHERAL RECEPTORS & DRG (1ST ORDER NEURONS)</text>
+
+                    <!-- Midline Reference Axis -->
+                    <line x1="400" y1="40" x2="400" y2="910" stroke="#475569" stroke-width="1.5" stroke-dasharray="6 6"/>
+                    <text x="408" y="925" fill="#64748b" font-size="11" font-weight="600" font-family="JetBrains Mono">MIDLINE</text>
+                    <text x="180" y="935" fill="#64748b" font-size="11" font-weight="700" text-anchor="middle">IPSILATERAL SENSORY INPUT (LEFT BODY)</text>
+                    <text x="620" y="935" fill="#64748b" font-size="11" font-weight="700" text-anchor="middle">CONTRALATERAL BRAIN (RIGHT CORTEX)</text>
+
+                    <!-- SENSORY TRACT WIRES -->
+                    
+                    <!-- 1A. T12 Lower Limb (Fasciculus Gracilis) - Peripheral to DRG -->
+                    <path id="wire-t12-periph" d="M 330 890 L 330 840" stroke="#1a3d2b" stroke-width="4" stroke-linecap="round"/>
+                    
+                    <!-- 1B. C6 Upper Limb (Fasciculus Cuneatus) - Peripheral to DRG -->
+                    <path id="wire-c6-periph" d="M 250 850 L 250 790" stroke="#1a3d2b" stroke-width="4" stroke-linecap="round"/>
+
+                    <!-- 2A. T12 DRG to Spinal Cord (Fasciculus Gracilis - Medial) -->
+                    <path id="wire-gracilis-spinal" d="M 330 840 L 330 480" stroke="#1a3d2b" stroke-width="5" stroke-linecap="round"/>
+
+                    <!-- 2B. C6 DRG to Spinal Cord (Fasciculus Cuneatus - Lateral) -->
+                    <path id="wire-cuneatus-spinal" d="M 250 790 L 250 480" stroke="#1a3d2b" stroke-width="5" stroke-linecap="round"/>
+
+                    <!-- 3A. Internal Arcuate Decussation - Gracilis (Nucleus Gracilis to Right Medial Lemniscus) -->
+                    <path id="wire-decuss-gracilis" d="M 330 480 C 330 440, 470 470, 485 430" stroke="#1a3d2b" stroke-width="4" fill="none" stroke-linecap="round"/>
+
+                    <!-- 3B. Internal Arcuate Decussation - Cuneatus (Nucleus Cuneatus to Right Medial Lemniscus) -->
+                    <path id="wire-decuss-cuneatus" d="M 250 480 C 250 430, 470 460, 485 430" stroke="#1a3d2b" stroke-width="4" fill="none" stroke-linecap="round"/>
+
+                    <!-- 4. Medial Lemniscus Ascending (Caudal Medulla -> Brainstem -> VPL Thalamus) -->
+                    <path id="wire-medial-lemniscus" d="M 485 430 L 485 320 L 520 220" stroke="#1a3d2b" stroke-width="6" fill="none" stroke-linecap="round"/>
+
+                    <!-- 5A. Thalamocortical 3rd Order - VPL to ACA Cortex (Lower Limb / Medial) -->
+                    <path id="wire-vpl-aca" d="M 520 220 C 520 160, 480 140, 470 95" stroke="#1a3d2b" stroke-width="4" fill="none" stroke-linecap="round"/>
+
+                    <!-- 5B. Thalamocortical 3rd Order - VPL to MCA Cortex (Upper Limb / Lateral) -->
+                    <path id="wire-vpl-mca" d="M 520 220 C 520 160, 580 140, 600 95" stroke="#1a3d2b" stroke-width="4" fill="none" stroke-linecap="round"/>
+
+
+                    
+                    <!-- LEVEL 1: RECEPTORS & DRG NODES -->
+                    <!-- T12 Peripheral Receptor Bulb -->
+                    <g id="node-t12-receptor" class="cursor-pointer" onclick="inspectNode('receptor-t12')">
+                        <circle cx="330" cy="890" r="14" fill="#1c2333" stroke="#475569" stroke-width="2"/>
+                        <text x="330" y="894" fill="#94a3b8" font-size="10" font-weight="700" text-anchor="middle">T12</text>
+                        <text x="330" y="915" fill="#cbd5e1" font-size="11" font-weight="600" text-anchor="middle">Meissner / Pacinian ($T_{12}$ Lower Limb)</text>
+                    </g>
+
+                    <!-- T12 DRG Node -->
+                    <g id="node-t12-drg" class="cursor-pointer" onclick="inspectNode('drg-t12')">
+                        <circle id="node-t12-drg-bg" cx="330" cy="840" r="18" fill="#1c2333" stroke="#64748b" stroke-width="2"/>
+                        <text id="node-t12-drg-txt" x="330" y="844" fill="#94a3b8" font-size="10" font-weight="800" text-anchor="middle">DRG</text>
+                    </g>
+
+                    <!-- C6 Peripheral Receptor Bulb -->
+                    <g id="node-c6-receptor" class="cursor-pointer" onclick="inspectNode('receptor-c6')">
+                        <circle cx="250" cy="850" r="14" fill="#1c2333" stroke="#475569" stroke-width="2"/>
+                        <text x="250" y="854" fill="#94a3b8" font-size="10" font-weight="700" text-anchor="middle">C6</text>
+                        <text x="250" y="875" fill="#cbd5e1" font-size="11" font-weight="600" text-anchor="middle">Muscle Spindle ($C_6$ Upper Limb)</text>
+                    </g>
+
+                    <!-- C6 DRG Node -->
+                    <g id="node-c6-drg" class="cursor-pointer" onclick="inspectNode('drg-c6')">
+                        <circle id="node-c6-drg-bg" cx="250" cy="790" r="18" fill="#1c2333" stroke="#64748b" stroke-width="2"/>
+                        <text id="node-c6-drg-txt" x="250" y="794" fill="#94a3b8" font-size="10" font-weight="800" text-anchor="middle">DRG</text>
+                    </g>
+
+
+                    <!-- LEVEL 2: SPINAL POSTERIOR COLUMNS LABELS -->
+                    <g id="label-posterior-columns">
+                        <rect x="230" y="620" width="120" height="30" rx="6" fill="#0f172a" stroke="#334155" stroke-width="1.5"/>
+                        <text x="290" y="635" fill="#38bdf8" font-size="10" font-weight="700" text-anchor="middle">POSTERIOR COLUMNS</text>
+                        <text x="290" y="645" fill="#94a3b8" font-size="8" font-weight="600" text-anchor="middle">Gracilis (Med) | Cuneatus (Lat)</text>
+                    </g>
+
+
+                    <!-- LEVEL 3: CAUDAL MEDULLA NUCLEI NODES -->
+                    <!-- Nucleus Gracilis -->
+                    <g id="node-nuc-gracilis" class="cursor-pointer" onclick="inspectNode('nuc-gracilis')">
+                        <circle id="node-nuc-gracilis-bg" cx="330" cy="480" r="22" fill="#1c2333" stroke="#64748b" stroke-width="2"/>
+                        <text id="node-nuc-gracilis-txt" x="330" y="484" fill="#94a3b8" font-size="10" font-weight="800" text-anchor="middle">N.Gracilis</text>
+                    </g>
+
+                    <!-- Nucleus Cuneatus -->
+                    <g id="node-nuc-cuneatus" class="cursor-pointer" onclick="inspectNode('node-cuneatus')">
+                        <circle id="node-nuc-cuneatus-bg" cx="250" cy="480" r="22" fill="#1c2333" stroke="#64748b" stroke-width="2"/>
+                        <text id="node-nuc-cuneatus-txt" x="250" y="484" fill="#94a3b8" font-size="10" font-weight="800" text-anchor="middle">N.Cuneatus</text>
+                    </g>
+
+
+                    <!-- LEVEL 4: BRAINSTEM MEDIAL LEMNISCUS LABEL -->
+                    <g id="label-medial-lemniscus">
+                        <rect x="500" y="310" width="130" height="26" rx="6" fill="#0f172a" stroke="#334155" stroke-width="1.5"/>
+                        <text x="565" y="327" fill="#38bdf8" font-size="10" font-weight="700" text-anchor="middle">MEDIAL LEMNISCUS</text>
+                    </g>
+
+
+                    <!-- LEVEL 5: VPL THALAMUS NODE -->
+                    <g id="node-vpl-thalamus" class="cursor-pointer" onclick="inspectNode('vpl-thalamus')">
+                        <ellipse id="node-vpl-bg" cx="520" cy="220" rx="36" ry="24" fill="#1c2333" stroke="#64748b" stroke-width="2"/>
+                        <text id="node-vpl-txt" x="520" y="224" fill="#94a3b8" font-size="11" font-weight="800" text-anchor="middle">VPL Thalamus</text>
+                    </g>
+
+
+                    <!-- LEVEL 6: SOMATOSENSORY CORTEX S1 NODES -->
+                    <!-- ACA Territory (Medial Cortex - Lower Body) -->
+                    <g id="node-aca-cortex" class="cursor-pointer" onclick="inspectNode('aca-cortex')">
+                        <rect id="node-aca-bg" x="420" y="65" width="100" height="38" rx="8" fill="#1c2333" stroke="#64748b" stroke-width="2"/>
+                        <text id="node-aca-txt" x="470" y="82" fill="#94a3b8" font-size="11" font-weight="800" text-anchor="middle">ACA Territory</text>
+                        <text x="470" y="95" fill="#64748b" font-size="9" font-weight="600" text-anchor="middle">S1 Medial (Leg/Foot)</text>
+                    </g>
+
+                    <!-- MCA Territory (Lateral Cortex - Upper Body) -->
+                    <g id="node-mca-cortex" class="cursor-pointer" onclick="inspectNode('mca-cortex')">
+                        <rect id="node-mca-bg" x="550" y="65" width="100" height="38" rx="8" fill="#1c2333" stroke="#64748b" stroke-width="2"/>
+                        <text id="node-mca-txt" x="600" y="82" fill="#94a3b8" font-size="11" font-weight="800" text-anchor="middle">MCA Territory</text>
+                        <text x="600" y="95" fill="#64748b" font-size="9" font-weight="600" text-anchor="middle">S1 Lateral (Arm/Hand)</text>
+                    </g>
+
+
+                    <!-- LESION OVERLAY MARKERS (DYNAMICALLY SHOWN VIA JS) -->
+                    <g id="lesion-markers-group"></g>
+
+                </svg>
+            </div>
+        </section>
+
+
+        <!-- RIGHT COLUMN: Interactive Control Panel & Clinical Suite (5 Cols) -->
+        <section class="lg:col-span-5 flex flex-col gap-5">
+
+            <!-- 1. SENSORY INPUT & MODALITY SELECTOR -->
+            <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 backdrop-blur">
+                <h2 class="text-sm font-bold text-slate-200 uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-teal-400"></span>
+                    1. Input & Sensory Modality
+                </h2>
+
+                <div class="space-y-3">
+                    <div>
+                        <label class="text-xs font-semibold text-slate-400 block mb-1.5">Sensory Input Source</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <button id="btn-input-t12" onclick="setSensoryInput('t12')" class="px-3 py-2 rounded-lg text-xs font-semibold border border-teal-500/50 bg-teal-500/20 text-teal-300 transition">
+                                Lower Limb ($T_{12}$)
+                            </button>
+                            <button id="btn-input-c6" onclick="setSensoryInput('c6')" class="px-3 py-2 rounded-lg text-xs font-semibold border border-slate-700 bg-slate-800 text-slate-400 hover:text-slate-200 transition">
+                                Upper Limb ($C_6$)
+                            </button>
+                            <button id="btn-input-both" onclick="setSensoryInput('both')" class="px-3 py-2 rounded-lg text-xs font-semibold border border-slate-700 bg-slate-800 text-slate-400 hover:text-slate-200 transition">
+                                Both ($T_{12} + C_6$)
+                            </button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="text-xs font-semibold text-slate-400 block mb-1.5">DCML Modality Examined</label>
+                        <select id="select-modality" onchange="updateModality()" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 font-medium focus:outline-none focus:border-teal-500">
+                            <option value="vibration">128Hz Vibration Sense (Pacinian Corpuscle)</option>
+                            <option value="proprioception">Conscious Proprioception / Position (Muscle Spindle)</option>
+                            <option value="fine-touch">Fine / Discriminative Touch (Meissner Corpuscle)</option>
+                            <option value="twopoint">Two-Point Discrimination (Merkel Disc)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- 2. HIGH-YIELD MBBS CLINICAL LESION SELECTOR -->
+            <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 backdrop-blur">
+                <h2 class="text-sm font-bold text-slate-200 uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+                    2. High-Yield Clinical Lesions
+                </h2>
+
+                <select id="select-lesion" onchange="setLesionMode(this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-xs text-amber-300 font-semibold focus:outline-none focus:border-rose-500 mb-3">
+                    <option value="baseline">Baseline Intact DCML Pathway</option>
+                    <option value="tabes">Tabes Dorsalis (Neurosyphilis - Posterior Column Destruction)</option>
+                    <option value="b12">Subacute Combined Degeneration (Vit B12 Deficiency)</option>
+                    <option value="brown-sequard">Brown-Séquard Syndrome (L3 Spinal Hemisection)</option>
+                    <option value="medial-medullary">Medial Medullary Syndrome (Dejerine / ASA Stroke)</option>
+                    <option value="vpl-stroke">VPL Thalamic Stroke (Dejerine-Roussy Syndrome)</option>
+                    <option value="aca-stroke">ACA Cortical Stroke (Contralateral Lower Limb Loss)</option>
+                    <option value="mca-stroke">MCA Cortical Stroke (Contralateral Upper Limb Loss)</option>
+                </select>
+
+                <div id="lesion-description-box" class="p-3 bg-slate-950/80 border border-slate-800 rounded-xl text-xs text-slate-300 space-y-1">
+                    <p class="font-bold text-teal-400" id="lesion-title">Normal Baseline Intact Pathway</p>
+                    <p class="text-slate-400 text-[11px] leading-relaxed" id="lesion-text">All 1st, 2nd, and 3rd order neurons are conducting sensory pulses normally up to the somatosensory cortex S1.</p>
+                </div>
+            </div>
+
+
+            <!-- 3. STEP-BY-STEP CAUSAL PLAYBACK CONTROLLER -->
+            <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 backdrop-blur">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-yellow-400"></span>
+                        3. Step-by-Step Causal Player
+                    </h2>
+                    <span id="step-indicator" class="text-xs font-mono bg-yellow-500/20 text-yellow-300 border border-yellow-500/40 px-2 py-0.5 rounded">
+                        Step 1 / 6
+                    </span>
+                </div>
+
+                <!-- Step Commentary Display Box -->
+                <div id="step-commentary" class="p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-300 min-h-[65px] mb-3 leading-relaxed">
+                    Step 1: Mechanical stimulus excites peripheral cutaneous/proprioceptive receptors.
+                </div>
+
+                <!-- Playback Buttons -->
+                <div class="flex items-center justify-between gap-2">
+                    <button onclick="prevStep()" class="p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-slate-300 transition">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                    </button>
+                    
+                    <button id="btn-play-pause" onclick="togglePlay()" class="flex-grow py-2 bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs rounded-lg transition flex items-center justify-center gap-1.5 shadow-[0_0_15px_rgba(20,184,166,0.3)]">
+                        <svg id="icon-play" class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                        <span id="txt-play">Play Sequence</span>
+                    </button>
+
+                    <button onclick="nextStep()" class="p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-slate-300 transition">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    </button>
+                </div>
+            </div>
+
+
+            <!-- 4. INTERACTIVE ROMBERG TEST SIMULATOR WIDGET -->
+            <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 backdrop-blur">
+                <h2 class="text-sm font-bold text-slate-200 uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-indigo-400"></span>
+                    4. Romberg Test Simulator Widget
+                </h2>
+
+                <div class="grid grid-cols-12 gap-3 items-center">
+                    <!-- Avatar Graphic Box -->
+                    <div class="col-span-5 bg-slate-950 p-3 rounded-xl border border-slate-800 flex flex-col items-center justify-center h-28 relative overflow-hidden">
+                        <!-- Human Stick Avatar -->
+                        <div id="romberg-avatar" class="transition-transform duration-500">
+                            <svg class="w-12 h-20 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <circle cx="12" cy="4" r="3" stroke-width="2"/>
+                                <path d="M12 7v8M8 10h8M9 21l3-6 3 6" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </div>
+                        <span id="romberg-eyes-icon" class="absolute top-2 right-2 text-xs bg-slate-800 px-1.5 py-0.5 rounded text-slate-300 font-mono">
+                            👀 Open
+                        </span>
+                    </div>
+
+                    <!-- Controls & Result -->
+                    <div class="col-span-7 space-y-2">
+                        <div class="flex gap-1.5">
+                            <button id="btn-eyes-open" onclick="setRombergEyes('open')" class="flex-1 py-1.5 bg-indigo-600/30 border border-indigo-500 text-indigo-300 font-semibold text-xs rounded-lg">
+                                Eyes Open
+                            </button>
+                            <button id="btn-eyes-closed" onclick="setRombergEyes('closed')" class="flex-1 py-1.5 bg-slate-800 border border-slate-700 text-slate-400 font-semibold text-xs rounded-lg hover:text-slate-200">
+                                Eyes Closed
+                            </button>
+                        </div>
+
+                        <div id="romberg-result-box" class="p-2 bg-slate-950 rounded-lg border border-slate-800 text-[11px] leading-snug">
+                            <span class="font-bold text-emerald-400 block">Negative Romberg</span>
+                            <span class="text-slate-400">Normal balance maintained by proprioceptive + visual inputs.</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+
+    <!-- HIGH-YIELD MBBS CLINICAL NOTES DRAWER (SLIDE-OVER) -->
+    <div id="notes-drawer" class="fixed inset-y-0 right-0 w-full max-w-md bg-slate-900 border-l border-slate-800 shadow-2xl z-50 transform translate-x-full transition-transform duration-300 p-6 overflow-y-auto">
+        <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-800">
+            <h3 class="text-lg font-bold text-teal-400 flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                DCML High-Yield MBBS Notes
+            </h3>
+            <button onclick="toggleNotesDrawer()" class="p-1 rounded-lg text-slate-400 hover:bg-slate-800">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+
+        <div class="space-y-4 text-xs text-slate-300 leading-relaxed">
+            <div class="p-3 bg-slate-950 rounded-xl border border-slate-800">
+                <h4 class="font-bold text-amber-300 mb-1">1. 3-Neuron Sensory Chain Overview</h4>
+                <ul class="list-disc pl-4 space-y-1 text-slate-400">
+                    <li><strong class="text-slate-200">1st Order Neuron:</strong> Pseudounipolar cell in DRG. Central axon enters posterior column without synapsing in spinal cord.</li>
+                    <li><strong class="text-slate-200">2nd Order Neuron:</strong> Nucleus Gracilis/Cuneatus in Caudal Medulla. Axons form Internal Arcuate Fibers $\to$ Decussate $\to$ Medial Lemniscus.</li>
+                    <li><strong class="text-slate-200">3rd Order Neuron:</strong> VPL Nucleus of Thalamus $\to$ Projects via PLIC to Somatosensory Cortex S1 (Brodmann 3, 1, 2).</li>
+                </ul>
+            </div>
+
+            <div class="p-3 bg-slate-950 rounded-xl border border-slate-800">
+                <h4 class="font-bold text-teal-300 mb-1">2. Somatotopic Mapping Rule</h4>
+                <p class="text-slate-400">
+                    <strong class="text-slate-200">Fasciculus Gracilis (Medial):</strong> Carries fibers from $T_6$ and below (Lower body/legs). Projects to ACA territory.<br>
+                    <strong class="text-slate-200">Fasciculus Cuneatus (Lateral):</strong> Carries fibers from $C_2-T_5$ (Upper body/arms). Projects to MCA territory.
+                </p>
+            </div>
+
+            <div class="p-3 bg-slate-950 rounded-xl border border-slate-800">
+                <h4 class="font-bold text-rose-300 mb-1">3. High-Yield Clinical Pearls</h4>
+                <ul class="list-disc pl-4 space-y-1.5 text-slate-400">
+                    <li><strong>Tabes Dorsalis:</strong> Demyelination of posterior columns in Neurosyphilis. Leads to sensory ataxia, positive Romberg sign, and loss of 128Hz vibration.</li>
+                    <li><strong>Brown-Séquard Syndrome:</strong> Spinal hemisection. Causes <em>ipsilateral</em> loss of DCML modalities below the lesion level (since decussation happens higher in the medulla!).</li>
+                    <li><strong>Medial Medullary Syndrome:</strong> ASA occlusion causing Medial Lemniscus ischemia $\to$ <em>contralateral</em> loss of vibration & proprioception.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-800 bg-slate-950 text-center py-3 text-xs text-slate-500">
+        DCML Neural Pathway Lab &bull; Interactive Medical Education Tool for MBBS Students &bull; 2026 Edition
+    </footer>
+
+
+    <script>
+        // GLOBAL STATE STORE
+        const state = {
+            input: 't12',         // 't12', 'c6', 'both'
+            modality: 'vibration',
+            lesion: 'baseline',   // 'baseline', 'tabes', 'b12', 'brown-sequard', 'medial-medullary', 'vpl-stroke', 'aca-stroke', 'mca-stroke'
+            step: 1,
+            maxStep: 6,
+            isPlaying: false,
+            playTimer: null,
+            rombergEyes: 'open'   // 'open', 'closed'
+        };
+
+        // LESION DEFINITIONS & MBBS METADATA
+        const lesionData = {
+            'baseline': {
+                title: 'Normal Intact DCML Pathway',
+                text: 'All 1st, 2nd, and 3rd order neurons conduct impulses normally without blockages. Full sensory perception in S1 cortex.',
+                blockedLevels: []
+            },
+            'tabes': {
+                title: 'Tabes Dorsalis (Neurosyphilis)',
+                text: 'Bilateral destruction of dorsal columns in the spinal cord. High-yield: Loss of vibration, proprioception, and positive Romberg sign.',
+                blockedLevels: ['gracilis-spinal', 'cuneatus-spinal']
+            },
+            'b12': {
+                title: 'Subacute Combined Degeneration (Vit B12 Deficiency)',
+                text: 'Demyelination of posterior columns + lateral corticospinal tracts. Loss of proprioception/vibration and spastic paraparesis.',
+                blockedLevels: ['gracilis-spinal', 'cuneatus-spinal']
+            },
+            'brown-sequard': {
+                title: 'Brown-Séquard Syndrome (Left L3 Hemisection)',
+                text: 'Spinal hemisection affecting lower cord. Gracilis (Lower Limb T12) is blocked ipsilaterally below lesion; C6 (Upper Limb) enters higher and remains intact!',
+                blockedLevels: ['gracilis-spinal']
+            },
+            'medial-medullary': {
+                title: 'Medial Medullary Syndrome (Dejerine / ASA Stroke)',
+                text: 'Anterior Spinal Artery infarct damages the Medial Lemniscus after decussation. Causes CONTRALATERAL loss of DCML modalities.',
+                blockedLevels: ['medial-lemniscus']
+            },
+            'vpl-stroke': {
+                title: 'VPL Thalamic Stroke (Dejerine-Roussy Syndrome)',
+                text: 'Infarct of Ventral Posterolateral Thalamic nucleus. Complete contralateral sensory anesthesia for face/body.',
+                blockedLevels: ['vpl-thalamus']
+            },
+            'aca-stroke': {
+                title: 'ACA Cortical Stroke',
+                text: 'Infarct of Anterior Cerebral Artery. Selectively damages medial postcentral gyrus (S1 lower limb representation). Upper limb (MCA) preserved.',
+                blockedLevels: ['aca-cortex']
+            },
+            'mca-stroke': {
+                title: 'MCA Cortical Stroke',
+                text: 'Infarct of Middle Cerebral Artery. Selectively damages lateral postcentral gyrus (S1 upper limb & hand representation). Lower limb (ACA) preserved.',
+                blockedLevels: ['mca-cortex']
+            }
+        };
+
+        // STEP COMMENTARY TEXTS
+        const stepCommentaryText = [
+            "Step 1: Sensory Receptors (Meissner/Pacinian/Muscle Spindles) detect mechanical deformation and generate action potentials.",
+            "Step 2: 1st Order Pseudounipolar Neuron carries signal through DRG and enters spinal posterior funiculus without synapsing.",
+            "Step 3: Signal ascends ipsilaterally in Fasciculus Gracilis (T12 / Lower Body) or Fasciculus Cuneatus (C6 / Upper Body).",
+            "Step 4: 2nd Order Synapse at Nucleus Gracilis/Cuneatus in Caudal Medulla. Axons form Internal Arcuate Fibers & DECUSSATE across midline.",
+            "Step 5: Ascends through Brainstem (Pons & Midbrain) as the Medial Lemniscus to reach the VPL Nucleus of the Thalamus.",
+            "Step 6: 3rd Order Thalamocortical projection passes through PLIC to land on Primary Somatosensory Cortex S1 (ACA / MCA homunculus)."
+        ];
+
+        // INITIALIZATION ON PAGE LOAD
+        window.onload = function() {
+            renderState();
+        };
+
+        // RENDER ENTIRE APPLICATION STATE
+        function renderState() {
+            // 1. Update Input Buttons UI
+            document.getElementById('btn-input-t12').className = (state.input === 't12' || state.input === 'both')
+                ? 'px-3 py-2 rounded-lg text-xs font-semibold border border-teal-500/50 bg-teal-500/20 text-teal-300 transition'
+                : 'px-3 py-2 rounded-lg text-xs font-semibold border border-slate-700 bg-slate-800 text-slate-400 transition';
+            
+            document.getElementById('btn-input-c6').className = (state.input === 'c6' || state.input === 'both')
+                ? 'px-3 py-2 rounded-lg text-xs font-semibold border border-teal-500/50 bg-teal-500/20 text-teal-300 transition'
+                : 'px-3 py-2 rounded-lg text-xs font-semibold border border-slate-700 bg-slate-800 text-slate-400 transition';
+
+            document.getElementById('btn-input-both').className = (state.input === 'both')
+                ? 'px-3 py-2 rounded-lg text-xs font-semibold border border-teal-500/50 bg-teal-500/20 text-teal-300 transition'
+                : 'px-3 py-2 rounded-lg text-xs font-semibold border border-slate-700 bg-slate-800 text-slate-400 transition';
+
+            // 2. Update Lesion Info Box & Status Bar
+            const currentLesion = lesionData[state.lesion];
+            document.getElementById('lesion-title').innerText = currentLesion.title;
+            document.getElementById('lesion-text').innerText = currentLesion.text;
+            document.getElementById('status-mode-label').innerText = 'Mode: ' + currentLesion.title;
+
+            // 3. Update Step Controller UI
+            document.getElementById('step-indicator').innerText = `Step ${state.step} / ${state.maxStep}`;
+            document.getElementById('step-commentary').innerText = stepCommentaryText[state.step - 1];
+
+            // 4. Update SVG Canvas Wires, Nodes & Lesions
+            updateSvgCanvas();
+
+            // 5. Update Romberg Widget
+            updateRombergWidget();
+        }
+
+        // UPDATE SVG CANVAS VISUALS (WIRES, PULSES, NODES)
+        function updateSvgCanvas() {
+            const blocked = lesionData[state.lesion].blockedLevels;
+            const step = state.step;
+
+            // Check if input active
+            const t12Active = (state.input === 't12' || state.input === 'both');
+            const c6Active = (state.input === 'c6' || state.input === 'both');
+
+            // Wire conduction status calculation
+            const gracilisSpinalActive = t12Active && step >= 2 && !blocked.includes('gracilis-spinal');
+            const cuneatusSpinalActive = c6Active && step >= 2 && !blocked.includes('cuneatus-spinal');
+
+            const nucGracilisActive = gracilisSpinalActive && step >= 3;
+            const nucCuneatusActive = cuneatusSpinalActive && step >= 3;
+
+            const decussActive = (nucGracilisActive || nucCuneatusActive) && step >= 4;
+            const medialLemniscusActive = decussActive && step >= 4 && !blocked.includes('medial-medullary');
+
+            const vplActive = medialLemniscusActive && step >= 5 && !blocked.includes('vpl-thalamus');
+
+            const acaActive = vplActive && t12Active && step >= 6 && !blocked.includes('aca-cortex');
+            const mcaActive = vplActive && c6Active && step >= 6 && !blocked.includes('mca-stroke');
+
+            // Set Wires Appearance (Bright Green #00ff88 when active, Dull Green #1a3d2b when inactive)
+            setWireState('wire-t12-periph', t12Active && step >= 1);
+            setWireState('wire-c6-periph', c6Active && step >= 1);
+
+            setWireState('wire-gracilis-spinal', gracilisSpinalActive);
+            setWireState('wire-cuneatus-spinal', cuneatusSpinalActive);
+
+            setWireState('wire-decuss-gracilis', nucGracilisActive && step >= 4 && !blocked.includes('medial-medullary'));
+            setWireState('wire-decuss-cuneatus', nucCuneatusActive && step >= 4 && !blocked.includes('medial-medullary'));
+
+            setWireState('wire-medial-lemniscus', medialLemniscusActive);
+
+            setWireState('wire-vpl-aca', vplActive && t12Active && step >= 6 && !blocked.includes('aca-cortex'));
+            setWireState('wire-vpl-mca', vplActive && c6Active && step >= 6 && !blocked.includes('mca-stroke'));
+
+            // Set Node States (Bright Yellow #ffea00 when excited, Dull Slate #1c2333 when inactive, Crimson Red on Lesion)
+            setNodeState('node-t12-drg-bg', 'node-t12-drg-txt', t12Active && step >= 1, false);
+            setNodeState('node-c6-drg-bg', 'node-c6-drg-txt', c6Active && step >= 1, false);
+
+            setNodeState('node-nuc-gracilis-bg', 'node-nuc-gracilis-txt', nucGracilisActive, false);
+            setNodeState('node-nuc-cuneatus-bg', 'node-nuc-cuneatus-txt', nucCuneatusActive, false);
+
+            setNodeState('node-vpl-bg', 'node-vpl-txt', vplActive, blocked.includes('vpl-thalamus'));
+
+            setNodeState('node-aca-bg', 'node-aca-txt', acaActive, blocked.includes('aca-cortex'));
+            setNodeState('node-mca-bg', 'node-mca-txt', mcaActive, blocked.includes('mca-cortex'));
+
+            // Render Lesion Overlay Icons
+            renderLesionMarkers(blocked);
+        }
+
+        // HELPER: SET WIRE COLOR AND PULSE
+        function setWireState(elementId, isActive) {
+            const el = document.getElementById(elementId);
+            if (!el) return;
+
+            if (isActive) {
+                el.setAttribute('stroke', '#00ff88');
+                el.classList.add('wire-pulse', 'glow-green-wire');
+            } else {
+                el.setAttribute('stroke', '#1a3d2b');
+                el.classList.remove('wire-pulse', 'glow-green-wire');
+            }
+        }
+
+        // HELPER: SET NODE COLOR AND TEXT HIGH-CONTRAST
+        function setNodeState(bgId, textId, isExcited, isLesioned) {
+            const bg = document.getElementById(bgId);
+            const txt = document.getElementById(textId);
+            if (!bg) return;
+
+            if (isLesioned) {
+                bg.setAttribute('fill', '#330f18');
+                bg.setAttribute('stroke', '#ff0055');
+                bg.classList.add('glow-red-lesion');
+                if (txt) txt.setAttribute('fill', '#ff3366');
+            } else if (isExcited) {
+                bg.setAttribute('fill', '#ffea00');
+                bg.setAttribute('stroke', '#fef08a');
+                bg.classList.add('glow-yellow-aura');
+                if (txt) txt.setAttribute('fill', '#0f172a');
+            } else {
+                bg.setAttribute('fill', '#1c2333');
+                bg.setAttribute('stroke', '#64748b');
+                bg.classList.remove('glow-yellow-aura', 'glow-red-lesion');
+                if (txt) txt.setAttribute('fill', '#94a3b8');
+            }
+        }
+
+        // RENDER LESION CROSS MARKERS (✕)
+        function renderLesionMarkers(blockedList) {
+            const group = document.getElementById('lesion-markers-group');
+            group.innerHTML = '';
+
+            const coords = {
+                'gracilis-spinal': { x: 330, y: 640 },
+                'cuneatus-spinal': { x: 250, y: 640 },
+                'medial-medullary': { x: 485, y: 440 },
+                'vpl-thalamus': { x: 520, y: 220 },
+                'aca-cortex': { x: 470, y: 84 },
+                'mca-cortex': { x: 600, y: 84 }
+            };
+
+            blockedList.forEach(key => {
+                if (coords[key]) {
+                    const c = coords[key];
+                    group.innerHTML += `
+                        <g class="glow-red-lesion">
+                            <circle cx="${c.x}" cy="${c.y}" r="16" fill="#330f18" stroke="#ff0055" stroke-width="2.5"/>
+                            <text x="${c.x}" y="${c.y + 5}" fill="#ff0055" font-size="16" font-weight="900" text-anchor="middle">✕</text>
+                        </g>
+                    `;
+                }
+            });
+        }
+
+        // SENSORY INPUT CONTROLS
+        function setSensoryInput(type) {
+            state.input = type;
+            renderState();
+        }
+
+        function updateModality() {
+            state.modality = document.getElementById('select-modality').value;
+            renderState();
+        }
+
+        // CLINICAL LESION MODE SWITCHER
+        function setLesionMode(mode) {
+            state.lesion = mode;
+            renderState();
+        }
+
+        // PLAYBACK CONTROLLER LOGIC
+        function togglePlay() {
+            if (state.isPlaying) {
+                pauseSequence();
+            } else {
+                playSequence();
+            }
+        }
+
+        function playSequence() {
+            state.isPlaying = true;
+            document.getElementById('txt-play').innerText = 'Pause Sequence';
+            document.getElementById('icon-play').innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
+
+            state.playTimer = setInterval(() => {
+                if (state.step < state.maxStep) {
+                    state.step++;
+                } else {
+                    state.step = 1;
+                }
+                renderState();
+            }, 1800);
+        }
+
+        function pauseSequence() {
+            state.isPlaying = false;
+            clearInterval(state.playTimer);
+            document.getElementById('txt-play').innerText = 'Play Sequence';
+            document.getElementById('icon-play').innerHTML = '<path d="M8 5v14l11-7z"/>';
+        }
+
+        function nextStep() {
+            pauseSequence();
+            if (state.step < state.maxStep) state.step++;
+            renderState();
+        }
+
+        function prevStep() {
+            pauseSequence();
+            if (state.step > 1) state.step--;
+            renderState();
+        }
+
+        // ROMBERG TEST SIMULATOR WIDGET LOGIC
+        function setRombergEyes(mode) {
+            state.rombergEyes = mode;
+            
+            document.getElementById('btn-eyes-open').className = (mode === 'open')
+                ? 'flex-1 py-1.5 bg-indigo-600/30 border border-indigo-500 text-indigo-300 font-semibold text-xs rounded-lg'
+                : 'flex-1 py-1.5 bg-slate-800 border border-slate-700 text-slate-400 font-semibold text-xs rounded-lg hover:text-slate-200';
+
+            document.getElementById('btn-eyes-closed').className = (mode === 'closed')
+                ? 'flex-1 py-1.5 bg-indigo-600/30 border border-indigo-500 text-indigo-300 font-semibold text-xs rounded-lg'
+                : 'flex-1 py-1.5 bg-slate-800 border border-slate-700 text-slate-400 font-semibold text-xs rounded-lg hover:text-slate-200';
+
+            updateRombergWidget();
+        }
+
+        function updateRombergWidget() {
+            const avatar = document.getElementById('romberg-avatar');
+            const eyesIcon = document.getElementById('romberg-eyes-icon');
+            const resultBox = document.getElementById('romberg-result-box');
+
+            const isDcmlLesioned = (state.lesion !== 'baseline');
+
+            if (state.rombergEyes === 'open') {
+                eyesIcon.innerText = '👀 Open';
+                avatar.classList.remove('animate-sway');
+                resultBox.innerHTML = `
+                    <span class="font-bold text-emerald-400 block">Negative Romberg</span>
+                    <span class="text-slate-400">Normal balance maintained by visual compensation even if DCML is impaired.</span>
+                `;
+            } else {
+                eyesIcon.innerText = '🙈 Closed';
+                if (isDcmlLesioned) {
+                    avatar.classList.add('animate-sway');
+                    resultBox.innerHTML = `
+                        <span class="font-bold text-rose-400 block">POSITIVE ROMBERG SIGN!</span>
+                        <span class="text-slate-300">Sensory Ataxia unmasked! Patient sways and falls without visual input to compensate for lost proprioception.</span>
+                    `;
+                } else {
+                    avatar.classList.remove('animate-sway');
+                    resultBox.innerHTML = `
+                        <span class="font-bold text-emerald-400 block">Negative Romberg</span>
+                        <span class="text-slate-400">Intact DCML proprioception maintains stable posture with eyes closed.</span>
+                    `;
+                }
+            }
+        }
+
+        // INSPECT NODE MODAL / POPUP
+        function inspectNode(nodeType) {
+            const notes = {
+                'receptor-t12': 'T12 Peripheral Mechanoreceptors: Pacinian Corpuscles (128Hz Vibration) & Meissner Corpuscles (Fine Touch) in lower limb.',
+                'drg-t12': 'Dorsal Root Ganglion (T12): Contains pseudounipolar 1st-order sensory neuron cell bodies.',
+                'nuc-gracilis': 'Nucleus Gracilis: Caudal medulla synapse for lower body (below T6). Gives rise to internal arcuate decussating fibers.',
+                'vpl-thalamus': 'Ventral Posterolateral (VPL) Thalamus: 3rd-order relay station receiving Medial Lemniscus inputs and projecting to S1.',
+                'aca-cortex': 'ACA Somatosensory Territory: Medial aspect of postcentral gyrus. Represents lower limb and perineum on homunculus.'
+            };
+
+            const text = notes[nodeType] || 'DCML Neural Station inspected.';
+            document.getElementById('step-commentary').innerText = '🔍 Node Details: ' + text;
+        }
+
+        // DRAWER TOGGLE
+        function toggleNotesDrawer() {
+            const drawer = document.getElementById('notes-drawer');
+            drawer.classList.toggle('translate-x-full');
+        }
+    </script>
+</body>
+</html>
